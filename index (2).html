@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Interval Tapper — Rhythm Accuracy Test</title>
+<style>
+  :root{
+    --ink:#111111;
+    --paper:#F7F6F2;
+    --white:#FFFFFF;
+    --line:#D9D6CC;
+    --signal:#D6402B;
+    --muted:#7A776D;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0;
+    padding:0;
+    height:100%;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Space Grotesk', 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  @font-face{
+    font-family:'Space Grotesk';
+    src:local('Space Grotesk');
+  }
+
+  .mono{
+    font-family:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+
+  .screen{
+    position:fixed;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .hidden{ display:none !important; }
+
+  /* ---------- SETUP SCREEN ---------- */
+  #setup{
+    background:var(--paper);
+    padding:24px;
+  }
+
+  .setup-card{
+    max-width:420px;
+    width:100%;
+    text-align:left;
+  }
+
+  .setup-eyebrow{
+    font-size:13px;
+    letter-spacing:0.02em;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+
+  .setup-title{
+    font-size:34px;
+    line-height:1.15;
+    font-weight:600;
+    margin:0 0 8px 0;
+  }
+
+  .setup-desc{
+    font-size:15px;
+    line-height:1.5;
+    color:var(--muted);
+    margin:0 0 32px 0;
+    max-width:38ch;
+  }
+
+  .field-label{
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:10px;
+    display:block;
+  }
+
+  .interval-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:8px;
+    margin-bottom:36px;
+  }
+
+  .interval-opt{
+    border:1px solid var(--line);
+    background:var(--white);
+    border-radius:2px;
+    padding:14px 4px;
+    text-align:center;
+    cursor:pointer;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:16px;
+    color:var(--ink);
+    transition:border-color 0.15s, background 0.15s;
+  }
+
+  .interval-opt span{
+    display:block;
+    font-size:10px;
+    color:var(--muted);
+    margin-top:4px;
+    font-family:'Space Grotesk', sans-serif;
+  }
+
+  .interval-opt:hover{ border-color:var(--ink); }
+
+  .interval-opt.selected{
+    background:var(--ink);
+    border-color:var(--ink);
+    color:var(--white);
+  }
+  .interval-opt.selected span{ color:#C9C6BC; }
+
+  .start-btn{
+    width:100%;
+    padding:16px;
+    background:var(--ink);
+    color:var(--white);
+    border:none;
+    border-radius:2px;
+    font-size:15px;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    cursor:pointer;
+    transition:opacity 0.15s;
+  }
+  .start-btn:disabled{ opacity:0.3; cursor:default; }
+  .start-btn:not(:disabled):hover{ opacity:0.85; }
+
+  .setup-foot{
+    margin-top:18px;
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  /* ---------- TEST SCREEN ---------- */
+  #test{
+    background:var(--white);
+  }
+
+  .instruction{
+    position:absolute;
+    top:0; left:0; right:0;
+    text-align:center;
+    padding:28px 16px 0 16px;
+    font-size:17px;
+    color:var(--ink);
+    letter-spacing:0.01em;
+  }
+
+  .instruction .mono{ font-weight:600; }
+
+  .instruction-sub{
+    font-size:13px;
+    color:var(--muted);
+    margin-top:6px;
+  }
+
+  .press-btn{
+    width:180px;
+    height:180px;
+    border-radius:50%;
+    border:2px solid var(--ink);
+    background:var(--white);
+    color:var(--ink);
+    font-family:'Space Grotesk', sans-serif;
+    font-size:20px;
+    letter-spacing:0.03em;
+    cursor:pointer;
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    transition:transform 0.06s ease, background 0.06s ease;
+  }
+  .press-btn:active{
+    transform:scale(0.94);
+    background:var(--ink);
+    color:var(--white);
+  }
+
+  .tally{
+    position:absolute;
+    bottom:22px;
+    right:24px;
+    font-size:13px;
+    color:var(--muted);
+  }
+
+  /* ---------- RESULTS SCREEN ---------- */
+  #results{
+    background:var(--paper);
+    padding:32px 20px;
+    overflow-y:auto;
+    justify-content:flex-start;
+  }
+
+  .results-inner{
+    max-width:720px;
+    width:100%;
+    margin-top:6vh;
+  }
+
+  .results-eyebrow{
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+
+  .accuracy-figure{
+    font-size:64px;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:500;
+    line-height:1;
+    margin:4px 0 4px 0;
+  }
+  .accuracy-figure .unit{
+    font-size:22px;
+    color:var(--muted);
+    margin-left:8px;
+  }
+
+  .accuracy-sub{
+    font-size:14px;
+    color:var(--muted);
+    margin-bottom:36px;
+  }
+
+  .chart-wrap{
+    border:1px solid var(--line);
+    background:var(--white);
+    padding:20px 16px 12px 16px;
+    margin-bottom:28px;
+  }
+
+  .legend{
+    display:flex;
+    gap:22px;
+    font-size:12px;
+    color:var(--muted);
+    margin-top:10px;
+  }
+  .legend-item{ display:flex; align-items:center; gap:6px; }
+  .legend-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+
+  .retry-btn{
+    padding:14px 22px;
+    background:var(--ink);
+    color:var(--white);
+    border:none;
+    border-radius:2px;
+    font-family:'Space Grotesk', sans-serif;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .retry-btn:hover{ opacity:0.85; }
+
+  /* ---------- LEADERBOARD ---------- */
+  .leaderboard-wrap{
+    border:1px solid var(--line);
+    background:var(--white);
+    padding:20px 16px;
+    margin-bottom:28px;
+  }
+
+  .leaderboard-title{
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:14px;
+  }
+
+  .lb-tabs{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:6px;
+    margin-bottom:16px;
+  }
+
+  .lb-tab{
+    border:1px solid var(--line);
+    background:var(--paper);
+    border-radius:2px;
+    padding:8px 4px;
+    text-align:center;
+    cursor:pointer;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    color:var(--ink);
+  }
+  .lb-tab.active{
+    background:var(--ink);
+    border-color:var(--ink);
+    color:var(--white);
+  }
+
+  .lb-table{
+    width:100%;
+    border-collapse:collapse;
+  }
+  .lb-table th{
+    text-align:left;
+    font-size:11px;
+    color:var(--muted);
+    font-weight:400;
+    padding:0 8px 8px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .lb-table td{
+    font-size:14px;
+    padding:8px 8px 8px 0;
+    border-bottom:1px solid #EFEDE6;
+  }
+  .lb-table td.rank{
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--muted);
+    width:24px;
+  }
+  .lb-table td.score{
+    font-family:'IBM Plex Mono', monospace;
+    text-align:right;
+  }
+  .lb-table td.empty{
+    color:var(--muted);
+  }
+  .lb-table tr.you td{
+    color:var(--signal);
+  }
+
+  /* ---------- NAME MODAL ---------- */
+  .modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(17,17,17,0.5);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    z-index:50;
+  }
+
+  .modal-card{
+    background:var(--white);
+    max-width:360px;
+    width:100%;
+    padding:26px;
+    border-radius:2px;
+  }
+
+  .modal-title{
+    font-size:19px;
+    font-weight:600;
+    margin:0 0 8px 0;
+  }
+
+  .modal-desc{
+    font-size:14px;
+    color:var(--muted);
+    line-height:1.45;
+    margin:0 0 18px 0;
+  }
+
+  .modal-input{
+    width:100%;
+    padding:12px;
+    border:1px solid var(--line);
+    border-radius:2px;
+    font-family:'Space Grotesk', sans-serif;
+    font-size:15px;
+    margin-bottom:16px;
+  }
+  .modal-input:focus{ outline:none; border-color:var(--ink); }
+
+  .modal-actions{
+    display:flex;
+    gap:10px;
+  }
+
+  .modal-save-btn{
+    flex:1;
+    padding:12px;
+    background:var(--ink);
+    color:var(--white);
+    border:none;
+    border-radius:2px;
+    font-family:'Space Grotesk', sans-serif;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .modal-save-btn:hover{ opacity:0.85; }
+
+  .modal-skip-btn{
+    padding:12px 16px;
+    background:transparent;
+    color:var(--muted);
+    border:1px solid var(--line);
+    border-radius:2px;
+    font-family:'Space Grotesk', sans-serif;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .modal-skip-btn:hover{ border-color:var(--ink); color:var(--ink); }
+
+  @media (max-width:480px){
+    .press-btn{ width:150px; height:150px; font-size:17px; }
+    .accuracy-figure{ font-size:48px; }
+    .interval-grid{ grid-template-columns:repeat(2,1fr); }
+    .lb-tabs{ grid-template-columns:repeat(4,1fr); }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============ SETUP ============ -->
+  <div id="setup" class="screen">
+    <div class="setup-card">
+      <div class="setup-eyebrow">Rhythm accuracy test</div>
+      <h1 class="setup-title">Interval Tapper</h1>
+      <p class="setup-desc">Pick a target interval. When the test starts the screen turns white — press the button as close to every interval as you can, ten times over.</p>
+
+      <span class="field-label">Target interval</span>
+      <div class="interval-grid" id="intervalGrid">
+        <div class="interval-opt" data-value="1">1s<span>10s total</span></div>
+        <div class="interval-opt" data-value="5">5s<span>50s total</span></div>
+        <div class="interval-opt" data-value="10">10s<span>100s total</span></div>
+        <div class="interval-opt" data-value="30">30s<span>300s total</span></div>
+      </div>
+
+      <button class="start-btn" id="startBtn" disabled>Start</button>
+      <div class="setup-foot">The test runs for ten intervals, then shows your timing accuracy.</div>
+    </div>
+  </div>
+
+  <!-- ============ TEST ============ -->
+  <div id="test" class="screen hidden">
+    <div class="instruction">
+      <div>Press the button every <span class="mono" id="instructionInterval">1s</span></div>
+      <div class="instruction-sub" id="instructionSub">Time will start after the first button press.</div>
+    </div>
+    <button class="press-btn" id="pressBtn">press</button>
+    <div class="tally mono" id="tally">0 / 10</div>
+  </div>
+
+  <!-- ============ RESULTS ============ -->
+  <div id="results" class="screen hidden">
+    <div class="results-inner">
+      <div class="results-eyebrow">Result</div>
+      <div class="accuracy-figure"><span id="accuracyValue">0</span><span class="unit">ms avg. offset</span></div>
+      <div class="accuracy-sub" id="accuracySub">Average absolute distance between each press and its nearest target interval.</div>
+
+      <div class="chart-wrap">
+        <svg id="chartSvg" width="100%" viewBox="0 0 900 200" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-dot" style="background:#111111"></span>Target interval</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#D6402B"></span>Your press</div>
+        </div>
+      </div>
+
+      <div class="leaderboard-wrap">
+        <div class="leaderboard-title">Top 5 — most accurate, by interval</div>
+        <div class="lb-tabs" id="lbTabs">
+          <div class="lb-tab" data-interval="1">1s</div>
+          <div class="lb-tab" data-interval="5">5s</div>
+          <div class="lb-tab" data-interval="10">10s</div>
+          <div class="lb-tab" data-interval="30">30s</div>
+        </div>
+        <table class="lb-table">
+          <thead>
+            <tr><th>#</th><th>Name</th><th style="text-align:right">Avg. offset</th></tr>
+          </thead>
+          <tbody id="lbBody"></tbody>
+        </table>
+      </div>
+
+      <button class="retry-btn" id="retryBtn">Try again</button>
+    </div>
+  </div>
+
+  <!-- ============ NAME ENTRY MODAL ============ -->
+  <div id="nameModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h2 class="modal-title">Top 5 score!</h2>
+      <p class="modal-desc" id="modalDesc">Your accuracy made the top 5 for this interval. Enter a name to save it to the board.</p>
+      <input type="text" class="modal-input" id="nameInput" placeholder="Your name" maxlength="20" autocomplete="off">
+      <div class="modal-actions">
+        <button class="modal-save-btn" id="nameSaveBtn">Save score</button>
+        <button class="modal-skip-btn" id="nameSkipBtn">Skip</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  var setupScreen = document.getElementById('setup');
+  var testScreen = document.getElementById('test');
+  var resultsScreen = document.getElementById('results');
+
+  var intervalGrid = document.getElementById('intervalGrid');
+  var startBtn = document.getElementById('startBtn');
+  var pressBtn = document.getElementById('pressBtn');
+  var tallyEl = document.getElementById('tally');
+  var instructionIntervalEl = document.getElementById('instructionInterval');
+  var retryBtn = document.getElementById('retryBtn');
+
+  var TOTAL_BEATS = 10;
+  var selectedInterval = null; // seconds
+  var startTime = null;        // performance.now() at the FIRST press, ms (null until then)
+  var presses = [];            // elapsed seconds since startTime
+  var endTimer = null;
+  var instructionSubEl = document.getElementById('instructionSub');
+  var waitingForFirstPress = false;
+
+  var lbTabsEl = document.getElementById('lbTabs');
+  var lbBodyEl = document.getElementById('lbBody');
+  var nameModal = document.getElementById('nameModal');
+  var nameInput = document.getElementById('nameInput');
+  var nameSaveBtn = document.getElementById('nameSaveBtn');
+  var nameSkipBtn = document.getElementById('nameSkipBtn');
+  var modalDesc = document.getElementById('modalDesc');
+
+  var LB_STORAGE_KEY = 'intervalTapperLeaderboards';
+  var activeLbInterval = null;
+  var pendingSave = null; // {interval, scoreMs}
+
+  function intervalLabel(sec){
+    return sec === 1 ? '1 second' : sec + ' seconds';
+  }
+
+  // ---- Setup interactions ----
+  intervalGrid.addEventListener('click', function(e){
+    var opt = e.target.closest('.interval-opt');
+    if(!opt) return;
+    Array.prototype.forEach.call(intervalGrid.children, function(c){ c.classList.remove('selected'); });
+    opt.classList.add('selected');
+    selectedInterval = parseFloat(opt.getAttribute('data-value'));
+    startBtn.disabled = false;
+  });
+
+  startBtn.addEventListener('click', function(){
+    if(!selectedInterval) return;
+    beginTest();
+  });
+
+  retryBtn.addEventListener('click', function(){
+    resultsScreen.classList.add('hidden');
+    setupScreen.classList.remove('hidden');
+  });
+
+  // ---- Test ----
+  function beginTest(){
+    presses = [];
+    tallyEl.textContent = '0 / ' + TOTAL_BEATS;
+    instructionIntervalEl.textContent = intervalLabel(selectedInterval);
+    instructionSubEl.classList.remove('hidden');
+    instructionSubEl.textContent = 'Time will start after the first button press.';
+
+    setupScreen.classList.add('hidden');
+    testScreen.classList.remove('hidden');
+
+    startTime = null;
+    waitingForFirstPress = true;
+  }
+
+  pressBtn.addEventListener('click', recordPress);
+  pressBtn.addEventListener('touchstart', function(e){
+    e.preventDefault();
+    recordPress();
+  }, {passive:false});
+
+  function recordPress(){
+    // The first press only starts the clock — it marks t=0 and isn't itself
+    // scored against a target interval.
+    if(waitingForFirstPress){
+      waitingForFirstPress = false;
+      startTime = performance.now();
+      instructionSubEl.classList.add('hidden');
+
+      var totalDurationMs = selectedInterval * TOTAL_BEATS * 1000;
+      endTimer = setTimeout(finishTest, totalDurationMs);
+      return;
+    }
+
+    if(startTime === null) return;
+    var elapsedSec = (performance.now() - startTime) / 1000;
+    presses.push(elapsedSec);
+    tallyEl.textContent = Math.min(presses.length, 99) + ' / ' + TOTAL_BEATS;
+  }
+
+  function finishTest(){
+    clearTimeout(endTimer);
+    var interval = selectedInterval;
+    var expected = [];
+    for(var i=1;i<=TOTAL_BEATS;i++){ expected.push(i*interval); }
+
+    startTime = null;
+    testScreen.classList.add('hidden');
+    showResults(expected, presses.slice(), interval);
+  }
+
+  // ---- Leaderboard (stored locally in this browser) ----
+  function loadBoards(){
+    try{
+      var raw = localStorage.getItem(LB_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch(e){ return {}; }
+  }
+
+  function saveBoards(boards){
+    try{ localStorage.setItem(LB_STORAGE_KEY, JSON.stringify(boards)); } catch(e){}
+  }
+
+  function getBoard(interval){
+    var boards = loadBoards();
+    var arr = boards[interval] || [];
+    return arr.slice().sort(function(a,b){ return a.score - b.score; });
+  }
+
+  function qualifiesForTop5(interval, scoreMs){
+    var board = getBoard(interval);
+    if(board.length < 5) return true;
+    return scoreMs < board[board.length-1].score;
+  }
+
+  function addToBoard(interval, name, scoreMs){
+    var boards = loadBoards();
+    var arr = boards[interval] || [];
+    arr.push({ name:name, score:scoreMs });
+    arr.sort(function(a,b){ return a.score - b.score; });
+    arr = arr.slice(0,5);
+    boards[interval] = arr;
+    saveBoards(boards);
+  }
+
+  lbTabsEl.addEventListener('click', function(e){
+    var tab = e.target.closest('.lb-tab');
+    if(!tab) return;
+    activeLbInterval = parseFloat(tab.getAttribute('data-interval'));
+    renderLeaderboard();
+  });
+
+  function renderLeaderboard(justAddedName){
+    Array.prototype.forEach.call(lbTabsEl.children, function(t){
+      t.classList.toggle('active', parseFloat(t.getAttribute('data-interval')) === activeLbInterval);
+    });
+
+    var board = getBoard(activeLbInterval);
+    var rows = [];
+    for(var i=0;i<5;i++){
+      var entry = board[i];
+      if(entry){
+        var isYou = justAddedName && entry.name === justAddedName.name && entry.score === justAddedName.score;
+        rows.push('<tr class="'+(isYou ? 'you' : '')+'"><td class="rank">'+(i+1)+'</td><td>'+escapeHtml(entry.name)+'</td><td class="score">'+entry.score+' ms</td></tr>');
+      } else {
+        rows.push('<tr><td class="rank">'+(i+1)+'</td><td class="empty">—</td><td class="score empty">—</td></tr>');
+      }
+    }
+    lbBodyEl.innerHTML = rows.join('');
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  nameSaveBtn.addEventListener('click', function(){
+    if(!pendingSave) return;
+    var name = nameInput.value.trim() || 'Anonymous';
+    addToBoard(pendingSave.interval, name, pendingSave.scoreMs);
+    nameModal.classList.add('hidden');
+    activeLbInterval = pendingSave.interval;
+    renderLeaderboard({ name:name, score:pendingSave.scoreMs });
+    pendingSave = null;
+  });
+
+  nameSkipBtn.addEventListener('click', function(){
+    nameModal.classList.add('hidden');
+    if(pendingSave){ activeLbInterval = pendingSave.interval; }
+    renderLeaderboard();
+    pendingSave = null;
+  });
+
+  nameInput.addEventListener('keydown', function(e){
+    if(e.key === 'Enter') nameSaveBtn.click();
+  });
+
+  function formatIntervalTabLabel(sec){
+    return (sec % 1 === 0 ? sec : sec.toFixed(1)) + 's';
+  }
+
+  // ---- Results ----
+  function showResults(expected, actualPresses, interval){
+    var sortedPresses = actualPresses.slice().sort(function(a,b){return a-b;});
+    var pairCount = Math.min(expected.length, sortedPresses.length);
+
+    var diffs = [];
+    for(var i=0;i<pairCount;i++){
+      diffs.push(Math.abs(sortedPresses[i] - expected[i]));
+    }
+
+    var avgSec = diffs.length ? (diffs.reduce(function(a,b){return a+b;},0) / diffs.length) : null;
+    var accuracyValueEl = document.getElementById('accuracyValue');
+    var accuracySubEl = document.getElementById('accuracySub');
+
+    activeLbInterval = interval;
+
+    if(avgSec === null){
+      accuracyValueEl.textContent = '—';
+      accuracySubEl.textContent = 'No presses were recorded during the test.';
+      renderLeaderboard();
+    } else {
+      var scoreMs = Math.round(avgSec*1000);
+      accuracyValueEl.textContent = scoreMs;
+      var note = '';
+      if(sortedPresses.length !== expected.length){
+        note = ' (' + sortedPresses.length + ' of ' + expected.length + ' target intervals had a matching press)';
+      }
+      accuracySubEl.textContent = 'Average absolute distance between each press and its nearest target interval' + note + '.';
+
+      if(qualifiesForTop5(interval, scoreMs)){
+        pendingSave = { interval:interval, scoreMs:scoreMs };
+        modalDesc.textContent = 'Your ' + scoreMs + 'ms average made the top 5 for the ' + formatIntervalTabLabel(interval) + ' interval. Enter a name to save it to the board.';
+        nameInput.value = '';
+        nameModal.classList.remove('hidden');
+        renderLeaderboard();
+        setTimeout(function(){ nameInput.focus(); }, 0);
+      } else {
+        renderLeaderboard();
+      }
+    }
+
+    drawChart(expected, sortedPresses, interval);
+
+    resultsScreen.classList.remove('hidden');
+  }
+
+  function drawChart(expected, actualPresses, interval){
+    var svg = document.getElementById('chartSvg');
+    var W = 900, H = 200;
+    var marginL = 40, marginR = 20, marginTop = 20, marginBottom = 36;
+    var plotW = W - marginL - marginR;
+    var totalDuration = interval * TOTAL_BEATS;
+
+    var yTarget = marginTop + 30;
+    var yPress = marginTop + 90;
+    var axisY = H - marginBottom;
+
+    function xPos(t){
+      return marginL + (t/totalDuration) * plotW;
+    }
+
+    var parts = [];
+
+    // axis line
+    parts.push('<line x1="'+marginL+'" y1="'+axisY+'" x2="'+(W-marginR)+'" y2="'+axisY+'" stroke="#D9D6CC" stroke-width="1"/>');
+
+    // ticks + labels at each expected interval
+    expected.forEach(function(t){
+      var x = xPos(t);
+      parts.push('<line x1="'+x+'" y1="'+(axisY-4)+'" x2="'+x+'" y2="'+(axisY+4)+'" stroke="#B9B6AC" stroke-width="1"/>');
+      parts.push('<text x="'+x+'" y="'+(axisY+18)+'" font-size="10" fill="#7A776D" text-anchor="middle" font-family="IBM Plex Mono, monospace">'+formatT(t)+'</text>');
+    });
+
+    // connecting guide lines from axis up to each dot row (subtle)
+    expected.forEach(function(t){
+      var x = xPos(t);
+      parts.push('<line x1="'+x+'" y1="'+yTarget+'" x2="'+x+'" y2="'+axisY+'" stroke="#EFEDE6" stroke-width="1"/>');
+    });
+
+    // row labels
+    parts.push('<text x="'+marginL+'" y="'+(yTarget-12)+'" font-size="10" fill="#7A776D" font-family="IBM Plex Mono, monospace">TARGET</text>');
+    parts.push('<text x="'+marginL+'" y="'+(yPress-12)+'" font-size="10" fill="#7A776D" font-family="IBM Plex Mono, monospace">PRESS</text>');
+
+    // target dots (black)
+    expected.forEach(function(t){
+      var x = xPos(t);
+      parts.push('<circle cx="'+x+'" cy="'+yTarget+'" r="5" fill="#111111"/>');
+    });
+
+    // press dots (red)
+    actualPresses.forEach(function(t){
+      if(t < 0) t = 0;
+      if(t > totalDuration) t = totalDuration;
+      var x = xPos(t);
+      parts.push('<circle cx="'+x+'" cy="'+yPress+'" r="5" fill="#D6402B"/>');
+    });
+
+    svg.setAttribute('viewBox', '0 0 '+W+' '+H);
+    svg.innerHTML = parts.join('');
+  }
+
+  function formatT(sec){
+    if(sec % 1 === 0) return sec + 's';
+    return sec.toFixed(1) + 's';
+  }
+
+})();
+</script>
+</body>
+</html>
